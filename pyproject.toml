@@ -1,0 +1,49 @@
+[project]
+name = "ai-pay"
+version = "0.1.0"
+description = "Сервис AI-empowered оформления товаров в интернет-магазинах"
+authors = [
+    {name = "glaswennn", email = "golovinov.daniel@gmail.com"}
+]
+readme = "README.md"
+requires-python = "==3.11.12"
+dependencies = [
+    "playwright>=1.52.0,<2.0.0",
+    "loguru",
+    "pydantic>=2.0.0",
+    "pydantic-settings",
+    "fastapi>=0.100.0",
+    "uvicorn[standard]",
+    "beautifulsoup4",
+    "faiss-cpu==1.9.0",
+    "langchain>=0.1.0",
+    "browser-use==0.1.48",
+    "browser-use[memory]",
+    "langchain-groq>=0.3.2,<0.4.0",
+    "python-dotenv>=1.1.0,<2.0.0",
+    "langchain-anthropic",
+    "MainContentExtractor",
+    "httpx",
+    "asyncio-mqtt",
+    "aiofiles",
+    "typing-extensions",
+    "requests>=2.32.3,<3.0.0",
+    "patchright>=1.52.0,<2.0.0"
+]
+
+[tool.poetry]
+packages = [{include = "platilka", from = "src"}]
+
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "C", "UP"]
+ignore = ["E501", "B008", "C901"]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
