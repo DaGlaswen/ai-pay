@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field, HttpUrl
 
 from platilka.models.common import DeliveryInfo
 
-
+# TODO - временно и оплата на этом этапе
 class CheckoutRequest(BaseModel):
     """Запрос для создания корзины"""
     product_url: HttpUrl = Field(..., description="Ссылка на товар")

@@ -122,8 +122,8 @@ async def checkout_endpoint(request: CheckoutRequest, background_tasks: Backgrou
         checkout_result = await ai_pay_service.checkout(
             product_url=str(request.product_url),
             quantity=request.quantity,
-            delivery_info=request.delivery_info.model_dump(),
-            notes=request.notes
+            # delivery_info=request.delivery_info.model_dump(),
+            # notes=request.notes
         )
 
         if not checkout_result.get("success", False):
@@ -137,16 +137,16 @@ async def checkout_endpoint(request: CheckoutRequest, background_tasks: Backgrou
             price=checkout_result.get("product_price", 0.0),
             quantity=checkout_result.get("actual_quantity", 0),
             availability=checkout_result.get("availability_status") != "нет в наличии",
-            currency=checkout_result.get("currency"),
+            currency=checkout_result.get("currency", "RUB"),
             # max_available_quantity=checkout_result.get("max_available_quantity", 0.0), #TODO хендлдить
             # availability_status=checkout_result.get("availability_status", "неизвестно")
         )
 
         delivery_details = DeliveryDetails(
-            cost=checkout_result.get("delivery_cost", 0.0),
-            estimated_date=checkout_result.get("estimated_delivery_date"),
+            cost=0.0, #TODO - исправить
+            estimated_date=checkout_result.get("estimated_delivery_date", "Неизвестно"),
             method=checkout_result.get("delivery_method", "Стандартная доставка"),
-            address=request.delivery_info.address
+            # address=request.delivery_info.address
         )
 
         # Собираем предупреждения
@@ -175,7 +175,7 @@ async def checkout_endpoint(request: CheckoutRequest, background_tasks: Backgrou
             "status": "checkout_completed"
         })
 
-        logger.info(f"Корзина успешно создана для заказа {order_id}. Сумма: {response.total_price} {response.currency}")
+        logger.info(f"Корзина успешно создана для заказа {order_id}. Сумма: {response.total_price} {product_info.currency}")
         return response
 
     except HTTPException:
@@ -201,8 +201,8 @@ async def confirm_endpoint(request: ConfirmRequest):
         # Проверяем существование заказа
         # TODO допилить логику с order_data
         order_data = order_manager.get_order(request.order_id)
-        if not order_data:
-            raise HTTPException(status_code=404, detail="Заказ не найден")
+        # if not order_data:
+        #     raise HTTPException(status_code=404, detail="Заказ не найден")
 
         logger.info(f"Начинаю подтверждение заказа {request.order_id}")
 
