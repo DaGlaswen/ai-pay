@@ -30,6 +30,7 @@ class AgentFactory:
                 disable_security=False,
                 # keep_alive=True,
                 new_context_config=BrowserContextConfig(
+                    allowed_domains=['www.delikateska.ru', 'hobbygames.ru', 'www.cosmall.ru', '*.ru', '*.shop'], #TODO придумать как без этого
                     # keep_alive=True,
                     disable_security=False,
                 ),
@@ -41,7 +42,8 @@ class AgentFactory:
         try:
             agent = Agent(
                 llm=self.llm,
-                browser_session=self.browser_session,
+                browser=self.browser_session,
+                # browser_session=self.browser_session,
                 sensitive_data=sensitive_data,
                 task=task,
             )

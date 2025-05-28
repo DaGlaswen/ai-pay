@@ -15,12 +15,12 @@ class Config:
     BROWSER_TIMEOUT = int(os.getenv("BROWSER_TIMEOUT", "30000"))
 
     APP_HOST: str = "localhost"
-    APP_PORT: int = 8000
+    APP_PORT: int = 8001
     APP_RELOAD: bool = True
 
     # Настройки LLM
-    LLM_MODEL_NAME: str = "meta-llama/llama-4-maverick-17b-128e-instruct"
-    LLM_TEMPERATURE: float = 0.1
+    LLM_MODEL_NAME: str = "meta-llama/llama-4-scout-17b-16e-instruct"
+    LLM_TEMPERATURE: float = 0.0
 
     # Логирование
     LOG_LEVEL: str = "DEBUG"
@@ -36,7 +36,7 @@ sensitive_data = {
     "card_cvv": os.getenv("CARD_CVV", "123"),
     "cardholder_name": os.getenv("CARDHOLDER_NAME", "Test User"),
     # Персональные данные
-    "phone_number": os.getenv("DEFAULT_PHONE", "+79991234567"),
+    "phone_number": os.getenv("DEFAULT_PHONE", "+79671717955"),
     "email": os.getenv("DEFAULT_EMAIL", "test@example.com"),
-    "full_name": os.getenv("DEFAULT_FULL_NAME", "Тестовый Пользователь")
+    "full_name": os.getenv("DEFAULT_FULL_NAME", "Головинов Данил Алексеевич")
 }

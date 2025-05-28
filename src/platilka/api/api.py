@@ -1,6 +1,7 @@
 import os
 from contextlib import asynccontextmanager
 from datetime import datetime
+from locale import currency
 
 from fastapi import FastAPI, APIRouter
 from fastapi import HTTPException, BackgroundTasks
@@ -121,7 +122,8 @@ async def checkout_endpoint(request: CheckoutRequest, background_tasks: Backgrou
         checkout_result = await ai_pay_service.checkout(
             product_url=str(request.product_url),
             quantity=request.quantity,
-            delivery_info=request.delivery_info.model_dump()
+            delivery_info=request.delivery_info.model_dump(),
+            notes=request.notes
         )
 
         if not checkout_result.get("success", False):
@@ -135,8 +137,9 @@ async def checkout_endpoint(request: CheckoutRequest, background_tasks: Backgrou
             price=checkout_result.get("product_price", 0.0),
             quantity=checkout_result.get("actual_quantity", 0),
             availability=checkout_result.get("availability_status") != "нет в наличии",
-            max_available_quantity=checkout_result.get("max_available_quantity"),
-            availability_status=checkout_result.get("availability_status", "неизвестно")
+            currency=checkout_result.get("currency"),
+            # max_available_quantity=checkout_result.get("max_available_quantity", 0.0), #TODO хендлдить
+            # availability_status=checkout_result.get("availability_status", "неизвестно")
         )
 
         delivery_details = DeliveryDetails(
@@ -159,8 +162,8 @@ async def checkout_endpoint(request: CheckoutRequest, background_tasks: Backgrou
             delivery=delivery_details,
             subtotal=checkout_result.get("subtotal", 0.0),
             total_price=checkout_result.get("total_price", 0.0),
-            currency=checkout_result.get("currency", "RUB"),
             notes=checkout_result.get("notes"),
+            availability_status=checkout_result.get("availability_status"),
             warnings=warnings
         )
 

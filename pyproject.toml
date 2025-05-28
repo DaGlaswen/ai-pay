@@ -28,7 +28,7 @@ dependencies = [
     "aiofiles",
     "typing-extensions",
     "requests>=2.32.3,<3.0.0",
-    "patchright>=1.52.0,<2.0.0"
+    #"patchright>=1.52.0,<2.0.0"
 ]
 
 [tool.poetry]
