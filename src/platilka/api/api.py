@@ -120,10 +120,11 @@ async def checkout_endpoint(request: CheckoutRequest, background_tasks: Backgrou
 
         # Вызываем детальное создание корзины
         checkout_result = await ai_pay_service.checkout(
+            request=request,
             product_url=str(request.product_url),
             quantity=request.quantity,
-            # delivery_info=request.delivery_info.model_dump(),
-            # notes=request.notes
+            delivery_info=request.delivery_info.model_dump(),
+            notes=request.notes
         )
 
         if not checkout_result.get("success", False):

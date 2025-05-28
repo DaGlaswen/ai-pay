@@ -11,3 +11,4 @@ class CheckoutRequest(BaseModel):
     quantity: int = Field(1, ge=1, description="Желаемое количество товара")
     delivery_info: DeliveryInfo = Field(..., description="Информация о доставке")
     notes: Optional[str] = Field(None, description="Дополнительные заметки")
+    payment_method: str = Field("card", description="Метод оплаты") #TODO - временно здесь
