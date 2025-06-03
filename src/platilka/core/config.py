@@ -19,7 +19,7 @@ class Config:
     APP_RELOAD: bool = True
 
     # Настройки LLM
-    LLM_MODEL_NAME: str = "meta-llama/llama-4-scout-17b-16e-instruct"
+    LLM_MODEL_NAME: str = "meta-llama/llama-4-maverick-17b-128e-instruct"
     LLM_TEMPERATURE: float = 0.0
 
     # Логирование
