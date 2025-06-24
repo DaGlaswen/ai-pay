@@ -1,12 +1,10 @@
 import os
 from contextlib import asynccontextmanager
 from datetime import datetime
-from locale import currency
 
 from fastapi import FastAPI, APIRouter
 from fastapi import HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from patchright.async_api import async_playwright as async_patchright
 
 from platilka.agent.agent_factory import AgentFactory
 from platilka.agent.ai_pay_service import AIPayService
@@ -40,11 +38,10 @@ async def lifespan(app: FastAPI):
     if not groq_api_key:
         raise ValueError("GROQ_API_KEY не установлен в переменных окружения")
 
-    # patchright = await async_patchright().start()
     agent_factory = AgentFactory(groq_api_key,
-                                 # patchright
                                  )
     ai_pay_service = AIPayService(agent_factory)
+    await agent_factory.start_browser()
     logger.info("Сервис автоматизации покупок запущен")
 
     yield
@@ -144,7 +141,7 @@ async def checkout_endpoint(request: CheckoutRequest, background_tasks: Backgrou
         )
 
         delivery_details = DeliveryDetails(
-            cost=0.0, #TODO - исправить
+            cost=0.0,  # TODO - исправить
             estimated_date=checkout_result.get("estimated_delivery_date", "Неизвестно"),
             method=checkout_result.get("delivery_method", "Стандартная доставка"),
             # address=request.delivery_info.address
@@ -176,7 +173,8 @@ async def checkout_endpoint(request: CheckoutRequest, background_tasks: Backgrou
             "status": "checkout_completed"
         })
 
-        logger.info(f"Корзина успешно создана для заказа {order_id}. Сумма: {response.total_price} {product_info.currency}")
+        logger.info(
+            f"Корзина успешно создана для заказа {order_id}. Сумма: {response.total_price} {product_info.currency}")
         return response
 
     except HTTPException:

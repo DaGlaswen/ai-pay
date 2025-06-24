@@ -1,12 +1,12 @@
-import json
-import re
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 from loguru import logger
 
 from platilka.agent.agent_factory import AgentFactory
-from platilka.exceptions.core_exceptions import InvalidAgentResponse
 from platilka.models.checkout.checkout_request import CheckoutRequest
+from platilka.utils.parse_utils import parse_json_from_text
+from platilka.utils.prompts import get_product_analyzer_prompt, get_cart_adder_prompt, get_quantity_manager_prompt, \
+    get_checkout_processor_prompt, get_cart_navigator_prompt, get_cart_verification_prompt
 
 
 class AIPayService:
@@ -14,41 +14,6 @@ class AIPayService:
 
     def __init__(self, agent_factory: AgentFactory):
         self.agent_factory = agent_factory
-
-    def parse_json_from_text(self, text: str) -> Optional[Dict[str, Any]]:
-        """Извлечение JSON из текста ответа агента"""
-        try:
-            # Поиск JSON блока в тексте
-            json_pattern = r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}'
-            matches = re.findall(json_pattern, text, re.DOTALL)
-
-            for match in matches:
-                try:
-                    return json.loads(match)
-                except json.JSONDecodeError:
-                    continue
-
-            # Если JSON не найден, пытаемся парсить весь текст
-            return json.loads(text)
-
-        except Exception as e:
-            raise InvalidAgentResponse(f"Не удалось извлечь JSON из ответа: {str(e)}")
-
-    def extract_numeric_value(self, text: str, default: float = 0.0) -> float:
-        """Извлечение числового значения из строки"""
-        try:
-            # Ищем числа с возможными разделителями
-            number_pattern = r'[\d\s,.]+'
-            matches = re.findall(number_pattern, str(text))
-
-            if matches:
-                # Берем последнее найденное число (обычно цена)
-                number_str = matches[-1].replace(' ', '').replace(',', '.')
-                return float(number_str)
-
-            return default
-        except:
-            return default
 
     async def checkout(self, product_url: str, quantity: int,
                        request: CheckoutRequest,
@@ -59,122 +24,40 @@ class AIPayService:
         """Детальное создание корзины с обработкой результатов"""
         try:
 
-            # Создаем детальный промпт на русском языке
-            checkout_prompt = f"""
-            Ты - профессиональный автоматизатор покупок в интернет-магазинах. Выполняй следующие действия максимально точно и последовательно:
-            
-            === КРИТИЧЕСКИЕ ПРАВИЛА ===
-            1. Работай ТОЛЬКО на странице товара - НЕ ПЕРЕХОДИ В КАТАЛОГ
-            2. Все действия выполняй как реальный пользователь
-            3. При ошибках указывай конкретный этап и детали проблемы
-            4. Адаптируйся к интерфейсу сайта, но не отклоняйся от инструкции
-            5. Не нажимай на кнопки и не заполняй формы слишком быстро
-            
-            ЭТАП 1: АНАЛИЗ ТОВАРА
-            1. Перейди по ссылке: {product_url}
-               - Убедись, что это страница товара (есть цена, кнопка "Купить")
-               - Если это не товар - немедленно верни ошибку
-            2. Найди и запиши:
-               - Точное название товара (ищи в h1, product-title, item-name)
-               - Цену (ищи в price-value, product-price, money-amount)
-               - Статус наличия ("В наличии", "Осталось X шт", "Под заказ")
-            
-            ЭТАП 2: ДОБАВЛЕНИЕ В КОРЗИНУ
-            1. Добавление товара:
-               - Найди кнопку (ищи: "Добавить в корзину", "Купить", "В корзину", "Add to cart")
-               - Если кнопка неактивна ("Нет в наличии") - верни ошибку
-               - Нажми и дождись подтверждения (ищи изменения в иконке корзины или popup)
-            2. Переход в корзину:
-               - Найди элемент корзины (ищи: "Корзина", "Оформить", иконку корзины, "Cart")
-               - Нажми и дождись загрузки страницы корзины
-            
-            ЭТАП 3: УПРАВЛЕНИЕ КОЛИЧЕСТВОМ
-            1. Найди элемент управления количеством (приоритет поиска):
-               а) Поле ввода (input[type='number'], [id*='quantity'], [name*='qty'])
-               б) Выпадающий список (select)
-               в) Кнопки +/- ("плюс", "минус", стрелки)
-               г) Слайдер количества
-            2. Проверь ограничения:
-               - Минимум (обычно 1)
-               - Максимум (если указан)
-               - Шаг изменения (обычно 1)
-            3. Установи количество {quantity}:
-               - Для поля: очисти, введи значение, нажми Enter
-               - Для dropdown: выбери значение
-               - Для кнопок: нажимай нужное количество раз
-               - Для слайдера: перетащи ползунок
-            4. Если {quantity} недоступно:
-               - Установи максимально возможное
-               - Запомни фактическое количество
-               - Проверь наличие предупреждений
-            5. Валидация:
-               - Убедись, что верное количество отображается
-               - Проверь отсутствие ошибок
-               - Запомни стоимость товаров
-            
-            ЭТАП 4: ОФОРМЛЕНИЕ ЗАКАЗА
-            1. Нажми кнопку оформления (ищи: "Оформить заказ", "Checkout", "Продолжить")
-            2. Заполни данные доставки:
-               - Способ: "{delivery_info.get('delivery_method', 'Курьерская доставка')}"
-               - Адрес: "{delivery_info.get('address', '')}"
-               - Дата: "{delivery_info.get('preferred_date', 'Ближайшая доступная')}"
-            3. Контактные данные:
-               - Телефон: phone_number
-               - Email: email
-               - ФИО: full_name
-            4. Комментарий: "{notes}" (если есть поле)
-            5. Проверь все данные перед продолжением
-            
-            ЭТАП 5: ОПЛАТА (только после валидации)
-            1. Выбери способ оплаты: {request.payment_method}
-            2. Для карты:
-               - Номер: card_number
-               - Срок: card_expiration_date
-               - CVV: card_cvv
-               - Держатель: cardholder_name
-            3. Подтверди оплату
-            4. Сохрани номер заказа
-            
-            ФОРМАТ ОТВЕТА (сохранен исходный):
-            ```json
-            {{
-                "success": true/false,
-                "product_name": "название товара",
-                "product_price": цена_за_единицу,
-                "requested_quantity": {quantity},
-                "actual_quantity": фактическое_количество,
-                "max_available_quantity": максимальное_доступное,
-                "availability_status": "в наличии/ограничено/нет",
-                "delivery_method": "способ доставки",
-                "delivery_cost": стоимость_доставки,
-                "estimated_delivery_date": "дата доставки",
-                "subtotal": стоимость_товаров,
-                "total_price": общая_стоимость,
-                "currency": "RUB",
-                "notes": "{notes}",
-                "error_message": "описание ошибки (если есть)"
-            ```    
-            }}
-            """
+            browser_session = self.agent_factory.browser_session
+            product_page = await browser_session.create_new_tab(product_url)
 
-            checkout_agent = await self.agent_factory.create_agent(checkout_prompt)
-            logger.info(f"Начинаю создание корзины для {product_url}")
-            result = await checkout_agent.run()
+            agent = await self.agent_factory.create_agent(get_product_analyzer_prompt(), product_page)
+            result = await agent.run()
+            product_data = await self._handle_agent_response(result)
 
-            extracted_content = result.history[-1].result[0].extracted_content
+            agent = await self.agent_factory.create_agent(get_cart_adder_prompt(), product_page)
+            result = await agent.run()
+            cart_adder_data = await self._handle_agent_response(result)
 
-            # Извлекаем структурированные данные из ответа
-            parsed_data = self.parse_json_from_text(str(extracted_content))
+            agent = await self.agent_factory.create_agent(get_cart_navigator_prompt(), product_page)
+            result = await agent.run()
+            cart_navigator_data = await self._handle_agent_response(result)
 
-            # Вычисляем totals если они не заполнены
-            if parsed_data.get("subtotal", 0) == 0:
-                parsed_data["subtotal"] = parsed_data.get("product_price", 0) * parsed_data.get("actual_quantity", 0)
+            current_page = await browser_session.get_current_page()
 
-            if parsed_data.get("total_price", 0) == 0:
-                parsed_data["total_price"] = parsed_data.get("subtotal", 0) + parsed_data.get("delivery_cost", 0)
+            agent = await self.agent_factory.create_agent(
+                get_cart_verification_prompt(product_data['product_name'], float(product_data['product_price'])), current_page)
 
-            logger.info(f"Корзина создана успешно. Общая стоимость: {parsed_data.get('total_price', 0)} руб.")
-            return parsed_data
+            agent = await self.agent_factory.create_agent(get_quantity_manager_prompt(product_data['product_name'], request.quantity), current_page)
+            result = await agent.run()
+            quantity_data = await self._handle_agent_response(result)
+
+            agent = await self.agent_factory.create_agent(
+                get_checkout_processor_prompt(delivery_info.get('delivery_method', 'Курьерская доставка'),
+                                              delivery_info.get('address', 'Курьерская доставка'),
+                                              notes),
+                current_page
+            )
+            result = await agent.run()
+            checkout_data = await self._handle_agent_response(result)
+
+            return checkout_data
 
         except Exception as e:
             logger.error(f"Ошибка при создании корзины: {str(e)}")
@@ -187,6 +70,13 @@ class AIPayService:
                 "actual_quantity": 0,
                 "total_price": 0.0
             }
+
+    async def _handle_agent_response(self, result):
+
+        extracted_content = result.history[-1].result[0].extracted_content
+        # Извлекаем структурированные данные из ответа
+        parsed_data = parse_json_from_text(str(extracted_content))
+        return parsed_data
 
     async def confirm_order(self, order_data: Dict[str, Any], expected_data: Dict[str, Any]) -> Dict[str, Any]:
         """Детальное подтверждение заказа с валидацией"""
@@ -256,7 +146,7 @@ class AIPayService:
             result = await confirm_order_agent.run()
 
             # Извлекаем результат
-            parsed_data = self.parse_json_from_text(str(result))
+            parsed_data = parse_json_from_text(str(result))
 
             if not parsed_data:
                 logger.warning("Не удалось извлечь JSON из ответа подтверждения")
